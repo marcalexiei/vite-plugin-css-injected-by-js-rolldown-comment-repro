@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: vite ${{ matrix.vite }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        vite:
+          - 8.1.5
+          - 8.3.5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Setup Node and pnpm
+        uses: marcalexiei/github-actions/setup-node-and-pnpm@92c64c084d3479cff756151cb8163d03608f2acd # v2.4.2
+        with:
+          save-cache: ${{ matrix.vite == '8.3.5' }}
+
+      - name: Install vite ${{ matrix.vite }}
+        if: matrix.vite != '8.3.5'
+        env:
+          VITE_VERSION: ${{ matrix.vite }}
+        run: pnpm add -D "vite@$VITE_VERSION"
+
+      - name: Print versions
+        run: pnpm ls vite rolldown vite-plugin-css-injected-by-js --depth 1
+
+      - name: Build
+        run: pnpm build
+
+      - name: Check emitted JS parses
+        run: for f in dist/assets/*.js; do node --check --input-type=module < "$f"; done
